@@ -1,2 +1,4 @@
+safe: true
+lsi: false
 name: StunPhase
 pygments: true
