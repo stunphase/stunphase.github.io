@@ -1,2 +1,4 @@
-stunphase_blog
+stunphase.github.io
 ==============
+
+Welcome to repository for StunPhase. 
