@@ -1,0 +1,62 @@
+---
+layout: post
+title:  "How to define very similar routes in rails"
+date:   2013-06-07 01:46:13
+categories: rails
+---
+<h3>The problem</h3>
+<p>In a rails 3.2.13 app, we have a resource called {%highlight ruby nowrap%}Solution{%endhighlight%} and a resource called {%highlight ruby nowrap%}Problem{%endhighlight%}. We want a few custom routes for viewing solutions in the context of problems, but some of them are very similar.</p>
+<p>Assuming we have a problem 22 called "I am hungry" and a solution 17 called "fry an egg," here are the routes we want:
+  {%highlight http%}/solutions/17
+/solutions/17/fry-an-egg
+/solutions/17/22
+/solutions/17/22/fix-i-am-hungry-with-fry-an-egg{% endhighlight %}
+</p>  
+<p>Since some of the routes pass an id and some a title, in the same place, writing the correct routes for this turns out to be just a little tricky.</p>
+<h3>The solution</h3>
+<p>Let's add some specs to test this out.</p>
+<p>{% highlight ruby%}
+it "routes to #show with id only" do
+  get("/solutions/1").should route_to("solutions#show", :id => "1")
+end
+
+it "routes to #show with problem id" do
+  get("/solutions/1/1").should route_to("solutions#show",
+    :id => "1", :problem_id => "1")
+end
+
+it "routes to #show with problem id and title" do
+  title = "Fixing+Problem381-chartreuse+with+Solution381-chartreuse"
+  get("/solutions/743/741/#{title}").should route_to("solutions#show",
+    :id => "743", :problem_id => "741", :title => title)
+end
+
+it "routes to #show with id and title but not problem id" do
+  get("/solutions/991/Solution1621-yellow").should route_to("solutions#show",
+    :id => "991", :title => "Solution1621-yellow")
+end{%endhighlight%}
+</p>
+<p>The trick is to use regex constraints to force the correct route to be used. Check out this excerpt from routes.rb.</p>
+<p>{% highlight ruby%}
+get "solutions/:id(/:problem_id(/:title))" => "solutions#show", 
+  :as => :show_solution_contextual, :constraints => {:problem_id => /\d+/}
+get "solutions/:id(/:title)" => "solutions#show", :as => :show_solution{%endhighlight%}
+</p>
+<p>Note that the order of the routes is important. If the route has a problem id, the first path is used because the constraint passes. But if it has a title, the first route fails and the second one is used. The only time this will fail is if the title of a solution is all numeric, which is already prevented by a validation in the Solution model.</p>
+<p>To make it easier to use these routes, Solution#public_route populates the titles and uses the correct route based on problem context being passed.</p>
+<p>{% highlight ruby%}
+class Solution < ActiveRecord::Base
+  include Rails.application.routes.url_helpers
+  # ...
+  def public_route(prob = nil)
+    if prob.kind_of?(Problem)
+      show_solution_contextual_path(:id => self.id, 
+        :title => self.contextual_title(prob), :problem_id => prob.id)
+    else
+      show_solution_path(:id => self.id, :title => self.contextual_title)
+    end
+  end
+end{%endhighlight%}
+</p>
+<p>Incidentally, {%highlight ruby nowrap%}Solution#contextual_title{%endhighlight%} just puts the strings together and url-normalizes them.</p>
+<p>That's it! The new routes DSL is pretty slick.</p>
