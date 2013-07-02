@@ -1,0 +1,167 @@
+---
+layout: post
+title: "Adding modules to Active Record models"
+date: 2013-07-02 10:46:13
+categories: rails
+published: true
+---
+<p>Lately I've been writing lots of modules to include in my active record models. I think I've run across some neat ways to do things, as well as a few gotchas. Let me try to sum up a few of these rules-of-thumb:</p>
+<p>
+  <ul>
+    <li>Default functionality, with a simple {% highlight ruby nowrap %}include ModuleName{% endhighlight %} line in the host class, should work well for most cases.</li>
+    <li>Allow the host class to customize the module by defining methods. Use ruby's metaprogramming / reflection capabilities to respond to these methods when they are defined, falling onto reasonable defaults when they are not.</li>
+    <li>Document any customizations you've made available in comments somewhere near the top of the module definition.</li>
+    <li>As much as possible, don't state assumptions about the host class and implementation details in comments. Check the host class yourself and raise errors when your assumptions are not met. Break early.</li>
+    <li>Use instance and class methods in your module as appropriate. Leave placeholders for both, even if you aren't using them now.</li>
+    <li>Where you include the module in your class can be important. For example, if you expect a specific attribute to be defined, you must do so before including the module</li>
+  </ul>
+</p>
+<h3>A starting point</h3>
+<p>Most of my modules follow this pattern. It allows you to specify instance and class methods very easily. It also allows you to perform validations and further extend the class at the moment of inclusion.</p>
+<p>{% highlight ruby %}
+module ModuleName
+  def self.included base
+    # validate host / base class here
+    base.send :include, InstanceMethods
+    base.extend ClassMethods
+  end
+
+  module InstanceMethods
+  end
+
+  module ClassMethods
+  end
+end
+{% endhighlight %}
+</p>
+<h3>A simple case: Statusable</h3>
+<p>Increasingly, we need to populate data in our back end without it showing up just yet in our front end. We have started using the website's database as a sort of internal source of truth about some of our products and things. So I added a column {% highlight ruby nowrap %}:status{% endhighlight %} to several models, with a constant {% highlight ruby nowrap %}VALID_STATUSES{% endhighlight %} to represent the various statuses available to a given model. After noticing how similar these bits were in various models throughout the codebase, I decided to create the Statusable module.</p>
+<h4>Checking the "host" class</h4>
+<p>My Statusable module makes assumptions about where it will be included. Check out this little snippet of code, which gets run when you include the Statusable module in a model:</p>
+<p>{% highlight ruby %}
+module Statusable 
+  def self.included base
+    raise "Statusable: Base model should be an active record model!" unless base < ActiveRecord::Base
+    raise "Statusable: Base model is missing a status column" unless base.accessible_attributes.include?(:status)
+  end
+end
+{% endhighlight %}
+</p>
+<p>This really exists to help out any developer trying to work with the Statusable class, including myself. Great, now let's add in a constant to represent valid statuses.</p>
+<p>{% highlight ruby %}
+base.const_set('VALID_STATUSES', ['public', 'internal', 'inactive'])
+{% endhighlight %}
+</p>
+<p>Since this defines the constant on the base class itself, each model owns its own statuses array. Since I want some models to have only a subset of these statuses, and I also want to constrain any base class to have no statuses other than these, let's allow the base class to define a method {% highlight ruby nowrap %}#valid_statuses{% endhighlight %} which defines the exact subset for that model.
+<p>{% highlight ruby %}
+default_statuses = ['public', 'internal', 'inactive']
+if base.respond_to?(:valid_statuses)
+  if (vs = base.valid_statuses).kind_of?(Array)
+    base.const_set('VALID_STATUSES', default_statuses & vs)
+  else
+    raise "#valid_statuses: expected Array, got #{vs.class.name}"
+  end
+else
+  base.const_set('VALID_STATUSES', default_statuses)
+end
+{% endhighlight %}
+</p>
+<p>Since I know the base class is an ActiveRecord model with a status column, I can start using cool Active Record stuff like validations.</p>
+<p>{% highlight ruby %}
+base.send(:validates, :status, :inclusion => { :in => base::VALID_STATUSES,
+    :message => "'%{value}' is not a valid status. Choose one of '#{base::VALID_STATUSES.join(', ')}'" })
+{% endhighlight %}
+</p>
+<p>Including the class's own {% highlight ruby nowrap %}VALUE_STATUSES{% endhighlight %} in the error message helps a confused coder figure out what's going on. For example, if the intersection of {% highlight ruby nowrap %}#valid_statuses{% endhighlight %} and {% highlight ruby nowrap %}VALID_STATUSES{% endhighlight %} were an empty array, the error message would show empty quotes as "valid" statuses, hinting that something is wrong with the setup.</p>
+<p>Finally, I want to be sure that the status is not left blank, and most of my migrations do not define a default value for the column. We can use more Active Record trickery for this. I decided to add an instance method called {% highlight ruby nowrap %}#reasonable_init{% endhighlight %} which simply defaults to the first value in the {% highlight ruby nowrap %}VALUE_STATUSES{% endhighlight %} array. Then I added this method to Active Record's {% highlight ruby nowrap %}#after_initialize{% endhighlight %} callback like so:</p>
+<p>{% highlight ruby %}
+module Statusable
+  def self.included base
+    ...
+    base.send :include, InstanceMethods
+    base.send(:after_initialize, :reasonable_init)
+  end
+
+  module InstanceMethods
+    def reasonable_init
+      self.status ||= self.class::VALID_STATUSES.first
+    end
+  end
+end
+{% endhighlight %}</p>
+<p>If a particular model should default to a status other than the first one in the {% highlight ruby nowrap %}VALID_STATUSES{% endhighlight %} array, the coder can simply override this instance method in the host class.</p>
+<p>A few examples of including the module in Active Record models:</p>
+<p>{% highlight ruby %}
+class Product < ActiveRecord::Base
+  ...
+  attr_accessible :status
+  ...
+  include Statusable
+end
+
+class SpecSheet < ActiveRecord::Base
+  ...
+  attr_accessible :status
+  ...
+  def valid_statuses
+    ['public', 'inactive']
+  end                  
+  include Statusable
+end
+{% endhighlight %}
+</p>
+<p>For completeness, here's the whole module:</p>
+<p>{% highlight ruby %}
+module Statusable
+
+  # Customizations:
+  # base#valid_statuses - returns an array representing the subset of statuses used by this host class
+
+  def self.included base
+    raise "Statusable: Base model should be an active record model!" unless base < ActiveRecord::Base
+    raise "Statusable: Base model is missing a status column" unless base.accessible_attributes.include?(:status)
+    default_statuses = ['public', 'internal', 'inactive']
+    if base.respond_to?(:valid_statuses)
+      if (vs = base.valid_statuses).kind_of?(Array)
+        base.const_set('VALID_STATUSES', default_statuses & vs)
+      else
+        raise "#valid_statuses: expected Array, got #{vs.class.name}"
+      end
+    else
+      base.const_set('VALID_STATUSES', default_statuses)
+    end
+    base.send(:validates, :status, :inclusion => { :in => base::VALID_STATUSES,
+                :message => "'%{value}' is not a valid status. Choose one of '#{base::VALID_STATUSES.join(', ')}'" })
+
+    base.send :include, InstanceMethods
+    base.extend ClassMethods
+
+    base.send(:after_initialize, :reasonable_init)
+  end
+
+  module InstanceMethods
+    def reasonable_init
+      self.status ||= self.class::VALID_STATUSES.first
+    end
+  end
+
+  module ClassMethods
+  end
+end
+{% endhighlight %}</p>
+<p>...and, a view helper for rendering dropdown (select) boxes on backend forms:</p>
+<p>{% highlight ruby %}
+def select_statuses(model)
+  raise "VALID_STATUSES not defined for #{model.class.name}" unless model.class.const_defined?(:VALID_STATUSES)
+  statuses = model.class.const_get(:VALID_STATUSES).map{|s| [s.capitalize, s]}
+  @template.select_tag("#{@object_name}[status]", @template.options_for_select(statuses, model.status))
+end
+{% endhighlight %}</p>
+<p>...which can be used in a haml view like this: </p>
+<p>{% highlight haml %}
+.field
+  = f.label :status
+  = f.select_statuses(@product)
+{% endhighlight %}</p>
+<h3>Conclusions</h3>
+<p>This is an almost ridiculously simple example of an included module, but following these rules can make writing more complex ones a lot simpler. Perhaps in a later post I'll show off some of the more complex modules we are using.</p>
