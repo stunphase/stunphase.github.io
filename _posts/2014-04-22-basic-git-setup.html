@@ -1,0 +1,92 @@
+---
+layout: post
+title: "Basic git Setup with BitBucket"
+date: 2014-04-22 11:58:37
+categories: git ssh
+published: true
+---
+<p>Lately my sister has been working on her first php site. I wanted to tell her how to set up a git repo at BitBucket with ssh keys. Then, I realized a handful of other people have asked me about it, and decided to make a blog post instead of an email. I know this is a bit scrappy for now, but I'll improve it to answer questions people have.</p>
+<h2>Why BitBucket?</h2>
+<p>Well, it's git and has free private repositories. Use any server you want.</p>
+<h2>Why ssh?</h2>
+<p>I prefer using ssh authentication. There's no password typing.</p>
+<h2>Setting up BitBucket...</h2>
+<p>...or whatever git server you want.</p>
+<ul>
+  <li>If you don't have a BitBucket account, sign up at <a href="http://bitbucket.org" target="_BLANK">bitbucket.org</a></li>
+  <li>Log in</li>
+  <li>Create a new repository. Repositories -> Create repository
+    <br/>
+    Name should probably be one word. Private repository, Git, don't turn on issue tracking or wiki unless you want it. Language is optional, for this scenario try php if you care.
+  </li>
+  <li>Do you have git installed? Run this in a shell to find out:
+    {% highlight bash%}which git{%endhighlight%}
+    If a path comes back, you have git. Otherwise, you need to install it. To install git, first install <a href="http://brew.sh/">homebrew</a>, then run:
+    <p>
+      {% highlight bash%}brew install git{%endhighlight%}
+    </p>
+  </li>
+
+  <li>Before git operations will succeed on the bitbucket server over ssh, it will be most convenient to add your public ssh key to bitbucket's server.
+    <ol>
+      <li>If you don't have ssh keys set up yet, create them by running:
+        {% highlight bash%}ssh-keygen{%endhighlight%}
+        Use the default values and do not enter a passphrase.
+      </li>
+      <li>At bitbucket, go to Manage Account -> SSH Keys</li>
+      <li>Paste in the text content of ~/.ssh/id_rsa.pub. <strong>Make extra sure to use the .pub file, because it contains your public key.</strong>
+        <br/>
+        You can try:
+        {% highlight bash%}cat ~/.ssh/id_rsa.pub{%endhighlight%}
+        And then paste the text into bitbucket
+      </li>
+    </ol>
+  </li>
+
+  <li>If you opt to use bitbucket, you'll need to get a connection string. Go to the repository you created, and look for the connection string there. You'll want to use the ssh one. A sample connection string is:
+    <br/>
+    {% highlight text%}git@bitbucket.org:user/repo.git{%endhighlight%}
+  </li>
+
+  <li>Now we're going to go to your codebase and initialize a git repo there, then push it up to the BitBucket server.
+    <p>{% highlight bash%}
+cd /path/to/my/repo    # here, change the directory to match your project
+git init .             # initialize a local git repository
+
+# these commands can be used repeatedly to commit new changes
+git add /path/to/files # add all the files that need to be in the repository
+git status             # use this command to see the state of your git repository
+git commit -m "Commit message here"
+
+# run these commands just once to set up the remote origin of the repository
+git remote add origin git@bitbucket.org:user/repo.git  # take this url from bitbucket
+git push -u origin --all # pushes up the repo and its refs for the first time
+git push -u origin --tags # pushes up any tags{%endhighlight%}
+    </p>
+  </li>
+
+  <li>Share the repository with your friends. On bitbucket, manage the repository, and under "Access Management" add your friends' bitbucket ids.</li>
+</ul>
+
+
+<hr/>
+
+<h2>Basic Git stuff</h2>
+<p>If you're on OS/X, I recommend that you download the popular GUI utility, <strong>gitx</strong>, to view changes, logs, etc.</p>
+<p>A file goes through various changes in git.
+  <ol>
+    <li>It is <em>added</em> to the repository. This can be used for new files, or modifications to files already in the repo.</li>
+    <li>Once a file is added, it will show up as <em>staged</em> when you run {%highlight bash nowrap%}git status{%endhighlight%}. Then, the file can be <em>committed</em>. A commit creates a new version of the local repository with the changes you selected.</li>
+    <li>After changes are committed, your local branch is "ahead" of the remote branch. At this point, you can <em>push</em> changes to the server.</li>
+    <li>I can <em>pull</em> your changes into my local copy of the repository.</li>
+  </ol>
+</p>
+
+<p>So, for example. Let's say you make a change that you want me to have. So, first you add the file, then commit it, then push it. I pull it, fix a spelling error, add it, commit it, and push it. Now, when you pull from the server, you will receive the changes I pushed earlier!</p>
+
+<p>As a rule of thumb, you should always pull before trying to push changes to the remote origin. Why? Because you don't know if someone else has already pushed changes. You'll have to figure out how to merge the changes in your local version of the repository, and only then can you push to remote.</p>
+
+      
+
+
+
