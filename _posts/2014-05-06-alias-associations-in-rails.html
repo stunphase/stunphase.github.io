@@ -39,15 +39,13 @@ any_sales_order_hold.sales_order
 
 # => returns an instance of a SalesRep record
 any_sales_rep_hold.holder
-any_sales_rep_hold.sales_rep
-{%endhighlight%}
+any_sales_rep_hold.sales_rep{%endhighlight%}
 </p>
 <p>I want to be able to access the underlying id of the holder, stored as hold_id, by calling either Hold#hold_id or Hold#sap_sales_order_no on an instance of any derived class of Hold.
   <em>Note: because of other concerns, I opted to tie to the sap_sales_order_no attribute rather than the id.</em>
   {%highlight ruby%}
 Holds::SalesOrder.first.hold_id            # => 1633
-Holds::SalesOrder.first.sap_sales_order_no # => 1633
-{%endhighlight%}
+Holds::SalesOrder.first.sap_sales_order_no # => 1633{%endhighlight%}
 </p>
 <p>I want all the active record getter and setter methods for both the holder and the sales_order, sales_rep, etc. associations to work.
   {%highlight ruby%}
@@ -57,8 +55,7 @@ sales_order_hold.save
 
 sales_order_hold = Holds::SalesOrder.new
 sales_order_hold.sales_order = SalesOrder.find(1633)
-sales_order_hold.save
-{%endhighlight%}
+sales_order_hold.save{%endhighlight%}
 </p>
 <h1>The solution</h1>
 <p>It turns out that alias_attribute works with associations, too!
@@ -71,8 +68,7 @@ class Holds::SalesOrder < Hold
   alias_attribute :holder, :sales_order         # here's our "alias_association"
 
   ...
-end
-{%endhighlight%}
+end{%endhighlight%}
 </p>
 <h1>Conclusion</h1>
 <p>At first, I was mucking around with metaprogramming to make my own method, alias_association, to do this job for me. The realization that alias_attribute should work here was a ray of light.</p>
