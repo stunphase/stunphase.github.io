@@ -71,7 +71,8 @@ class Holds::SalesOrder < Hold
   alias_attribute :holder, :sales_order         # here's our "alias_association"
 
   ...
-end{%endhighlight%}
+end
+{%endhighlight%}
 </p>
 <h1>Conclusion</h1>
 <p>At first, I was mucking around with metaprogramming to make my own method, alias_association, to do this job for me. The realization that alias_attribute should work here was a ray of light.</p>
