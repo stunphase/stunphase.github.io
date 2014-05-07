@@ -28,6 +28,15 @@ end
 {%endhighlight%}
 </p>
 <p>There are types set up for each kind of hold a pallet can have, and they each have their own logic. For example, a will call fulfillment transaction can remove a number of boxes from a pallet. What if the pallet has 80 boxes, and there's an existing order that pulls 60 boxes, and the new will call order calls for 30 more? Obviously, that pallet shouldn't be used to fulfill on the order, because it doesn't have enough boxes. That kind of logic used to live in Pallet, but now it can reside more tidily in the Holds::WillCallFulfillment class.</p>
+<h2>A note on STI</h2>
+<p>To be able to store the STI holds classes in their own directory, I had to add the directory to the autoload_paths configuration.
+  <br/>config/application.rb
+  {%highlight ruby%}
+  ...
+  config.autoload_paths << File.join(Rails.root, 'app', 'models', 'holds')
+  {%endhighlight%}
+</p>
+  
 <h2>Finally coming around to the point</h2>
 <p>
   I want to be able to access the "holder" object for any hold, always via the identical attribute "holder" - but sometimes it will return a sales order, sometimes a sales rep, etc.
