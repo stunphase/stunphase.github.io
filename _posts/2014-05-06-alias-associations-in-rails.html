@@ -32,9 +32,7 @@ end
 <p>To be able to store the STI holds classes in their own directory, I had to add the directory to the autoload_paths configuration.
   <br/>config/application.rb
   {%highlight ruby%}
-  ...
-  config.autoload_paths << File.join(Rails.root, 'app', 'models', 'holds')
-  {%endhighlight%}
+  config.autoload_paths << File.join(Rails.root, 'app', 'models', 'holds'){%endhighlight%}
 </p>
   
 <h2>Finally coming around to the point</h2>
