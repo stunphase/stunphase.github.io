@@ -1,0 +1,25 @@
+---
+layout: post
+title: "Rails 4: has_many :gotchas, :dependent => :destroy"
+date: 2014-08-21 11:30:00 am
+categories: rails active_record ruby
+published: true
+---
+<h1>ActiveRecord API changes in Rails 4</h1>
+<p>I found myself scratching my head today over what turned out to be an API change in rails 4. When I called destroy on a record, its dependent records remained. Check out the code below:</p>
+
+<p>{% highlight ruby%}
+# in rails 3.x
+class Product < ActiveRecord::Base
+  has_many :product_options, :dependent => :destroy
+end
+
+# in rails 4.x
+class Product < ActiveRecord::Base
+  has_many :product_options, nil, :dependent => :destroy
+end{%endhighlight%}
+</p>
+
+<p>The new second argument, passed as nil in the example above, is a scope for the relationship. It accepts the kinds of things you typically pass to the #where method. This is powerful new functionality, but it took me a minute to figure out why the options weren't being accepted.</p>
+
+<p>Simple, but consider this a helpful PSA.</p>
