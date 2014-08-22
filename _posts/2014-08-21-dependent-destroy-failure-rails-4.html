@@ -20,6 +20,38 @@ class Product < ActiveRecord::Base
 end{%endhighlight%}
 </p>
 
-<p>The new second argument, passed as nil in the example above, is a scope for the relationship, somewhat similar to the old :conditions option. It accepts the kinds of things you typically pass to the #where method. This is powerful new functionality, but it took me a minute to figure out why the options weren't being accepted.</p>
+<p>The new second argument, passed as nil in the example above, is a scope for the relationship. </p>
 
-<p>Simple, but consider this a helpful PSA.</p>
+<h2>Wait a second, how were all my associations working, then?</h2>
+<p>Well, it turns out that active record, in the absence of a valid scope, assumes the scope was intended to be the options hash</p>
+<p>{% highlight ruby%}
+module ActiveRecord::Associations::Builder
+  class Association
+
+    # ...
+
+    def initialize(model, name, scope, options)
+
+      # ...
+
+      if scope.is_a?(Hash)
+        @scope   = nil
+        @options = scope
+      else
+        @scope   = scope
+        @options = options
+      end
+end{%endhighlight%}
+</p>
+
+<p>And here's where the block gets processed:</p>
+<p>{% highlight ruby%}
+      if @scope && @scope.arity == 0
+        prev_scope = @scope
+        @scope = proc { instance_exec(&prev_scope) }
+      end
+end{%endhighlight%}
+</p>
+
+<h2>So then why should I care?</h2>
+<p>I was getting a bit confused about argument order. Personally, I find it useful to just insert a nil there as a placeholder for the time I want to insert a scope. This prevents me from just shoving it in at the end of the options hash.</p>
