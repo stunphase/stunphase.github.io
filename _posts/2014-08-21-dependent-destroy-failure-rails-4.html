@@ -3,7 +3,7 @@ layout: post
 title: "Rails 4: has_many :gotchas, :dependent => :destroy"
 date: 2014-08-21 11:30:00 am
 categories: rails active_record ruby
-published: true
+published: false
 ---
 <h1>ActiveRecord API changes in Rails 4</h1>
 <p>I found myself scratching my head today over what turned out to be an API change in rails 4. When I called destroy on a record, its dependent records remained. Check out the code below:</p>
@@ -55,3 +55,6 @@ end{%endhighlight%}
 
 <h2>So then why should I care?</h2>
 <p>I was getting a bit confused about argument order. Personally, I find it useful to just insert a nil there as a placeholder for the time I want to insert a scope. This prevents me from just shoving it in at the end of the options hash.</p>
+
+<h2>But at the beginning of the post you said dependent destroy wasn't working.</h2>
+<p>Crap, it's still only working part of the time, and this whole post just got unpublished until I figure out what's going on.</p>
