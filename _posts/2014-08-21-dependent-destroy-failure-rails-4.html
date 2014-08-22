@@ -20,6 +20,6 @@ class Product < ActiveRecord::Base
 end{%endhighlight%}
 </p>
 
-<p>The new second argument, passed as nil in the example above, is a scope for the relationship. It accepts the kinds of things you typically pass to the #where method. This is powerful new functionality, but it took me a minute to figure out why the options weren't being accepted.</p>
+<p>The new second argument, passed as nil in the example above, is a scope for the relationship, somewhat similar to the old :conditions option. It accepts the kinds of things you typically pass to the #where method. This is powerful new functionality, but it took me a minute to figure out why the options weren't being accepted.</p>
 
 <p>Simple, but consider this a helpful PSA.</p>
