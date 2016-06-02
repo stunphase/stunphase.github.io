@@ -1,0 +1,26 @@
+---
+layout: post
+title:  "OS/X Terminal History"
+date:   2016-06-02 10:18:20
+---
+<h1>bash history in OS/X Terminal</h1>
+<p>I've noticed a few annoying things about the way Terminal in OS/X handles history.</p>
+<p>
+  <ul>
+    <li>It truncates history back to 500 entries if you open multiple sessions</li>
+    <li>It seems to ignore some commands, which never quite make it into history.</li>
+    <li>It appears not to pay attention to variables like HISTSIZE</li>
+  </ul>
+</p>
+<p>Today I opened the file at /private/etc/bashrc_Apple_Terminal and discovered that this is all because of the way sessions are handled.</p>
+<P>I added the following to my ~/.bash_profile to change the way history and sessions are handled in Terminal.
+  {%highlight sh%}
+export HISTSIZE=100000
+export HISTFILESIZE=200000
+
+# see /private/etc/bashrc_Apple_Terminal
+export SHELL_SESSION_HISTORY=0 # share a single history between term sessions
+`touch ~/.bash_sessions_disable` 
+{%endhighlight%}
+</p>
+<p>I don't mind disabling sessions, since I always close out all my Terminal windows when I'm done with them. But, I'm sure you can figure out your own best configuration if you read through the contents of /private/etc/bashrc_Apple_Terminal</p>
