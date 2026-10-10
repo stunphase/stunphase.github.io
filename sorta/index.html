@@ -460,7 +460,7 @@
     }).join('');
   }
 
-  // The Sorta mark: a rounded box striped with the first five list colours,
+  // The Sorta mark: a square box striped with the first five list colours,
   // with an S over it. Used as the home button and the tab icon.
   function logo() {
     var stripes = '';
@@ -468,8 +468,7 @@
       stripes += '<rect x="0" y="' + (i * 4.8) + '" width="24" height="4.9" fill="' + color(hueFor(i)) + '"/>';
     }
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">' +
-      '<clipPath id="sorta-box"><rect width="24" height="24" rx="5"/></clipPath>' +
-      '<g clip-path="url(#sorta-box)">' + stripes + '</g>' +
+      stripes +
       '<text x="12" y="20.6" text-anchor="middle" font-family="Bebas Neue, Oswald, Arial Narrow, Impact, sans-serif" ' +
       'font-size="21" fill="rgba(0,0,0,.5)">S</text></svg>';
   }
