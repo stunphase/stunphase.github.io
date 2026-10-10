@@ -115,6 +115,8 @@
   }
   .action:not(:disabled):active, .row:active, .item:active { background: rgba(0,0,0,.08); }
   .action small { font-size: 20px; color: var(--rule); }
+  .more { display: block; width: 100%; min-height: 44px; padding: 14px 10px 8px; font-size: 22px; color: rgba(0,0,0,.28); }
+  .more:active { background: rgba(0,0,0,.08); }
   .hint { padding: 12px 10px; font-size: 20px; color: var(--rule); }
 
   /* Text entry */
@@ -364,10 +366,10 @@
           action('MARK AS DONE', 'done') +
           action('SKIP FOR NOW', 'skip', i >= n - 1) +
           action('RE-SORT', 'resort', n < 2) +
-          action('VIEW ALL TASKS', 'all', false, l.tasks.length) +
           '</div>' +
           (n > 1 ? '<div class="section"><span>THE LIST</span></div>' + taskRows(l, i, false) : '');
       }
+      body += '<button class="more" data-a="all">VIEW ALL TASKS &rsaquo;</button>';
       return '<div class="screen" style="background:' + listColor(l) + '">' +
         bar(ui.focus && ui.focusFrom === 'all' ? ['BACK', 'all'] : ['BACK', 'home'], ['ADD', 'addTask']) +
         '<div class="title">' + esc(l.name) + '</div><div class="scroll">' + body + '</div></div>';
