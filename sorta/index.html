@@ -636,18 +636,37 @@
     actions[el.dataset.a](el);
   });
 
+  function submitEntry(f) {
+    var text = f.t.value.replace(/\s+/g, ' ').trim();
+    if (!text) { f.t.value = ''; f.t.focus(); return; }
+    submits[f.dataset.submit](text);
+  }
+
   app.addEventListener('submit', function (e) {
     e.preventDefault();
-    var f = e.target, text = f.t.value.replace(/\s+/g, ' ').trim();
-    if (!text) { f.t.focus(); return; }
-    submits[f.dataset.submit](text);
+    submitEntry(e.target);
   });
 
-  // Return submits instead of adding a newline.
+  // Return (the keyboard's check/done key) submits instead of adding a
+  // line. iOS often skips a usable Enter keydown while predictive text is
+  // active, so catch the line break itself as it's inserted too.
   app.addEventListener('keydown', function (e) {
-    if (e.target.tagName === 'TEXTAREA' && e.key === 'Enter' && !e.shiftKey) {
+    if (e.target.tagName === 'TEXTAREA' && e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
-      e.target.form.requestSubmit();
+      submitEntry(e.target.form);
+    }
+  });
+  app.addEventListener('beforeinput', function (e) {
+    if (e.target.tagName === 'TEXTAREA' && (e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph')) {
+      e.preventDefault();
+      submitEntry(e.target.form);
+    }
+  });
+  app.addEventListener('input', function (e) {
+    var t = e.target;
+    if (t.tagName === 'TEXTAREA' && /[\r\n]/.test(t.value)) {
+      t.value = t.value.replace(/[\r\n]+/g, '');
+      submitEntry(t.form);
     }
   });
 
