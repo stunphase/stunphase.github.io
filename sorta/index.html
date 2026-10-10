@@ -27,8 +27,8 @@
     task view, where the same actions apply to it. Tasks can be deleted there.
   - The task view also lists every task below its actions, current one
     highlighted; tapping one switches to it.
-  - Each new list takes the next colour in a fixed hue step and keeps it,
-    so lists build a rainbow down the home screen without repeating.
+  - List colours come from position by a fixed ~25 degree hue shift per
+    row, matching the mockups, so the home screen reads as a rainbow.
 -->
 <style>
   :root {
@@ -219,9 +219,6 @@
   function save() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {} }
 
   var data = load();
-  // Lists saved before colours were stored get theirs in list order.
-  if (typeof data.nextColor !== 'number') data.nextColor = 0;
-  data.lists.forEach(function (l) { if (typeof l.hue !== 'number') l.hue = hueFor(data.nextColor++); });
   var ui = { view: 'home', listId: null, cmp: null, focus: null };
   var toastTimer = null;
 
@@ -230,25 +227,24 @@
     return null;
   }
 
-  // Each new list takes the next hue in a fixed 22-degree step and keeps
-  // it, so lists run red, orange, yellow, green, teal, blue, purple, pink
-  // and round again. Each later lap is offset by half a step so its
-  // colours fall between the previous lap's instead of repeating them.
-  function hueFor(n) {
-    var step = 22, raw = n * step, lap = Math.floor(raw / 360);
-    return (2 + raw + lap * step / 2) % 360;
+  // List colours come from position by a fixed hue shift, as in the
+  // original mockups: about 25 degrees per row (red, orange, yellow,
+  // green, teal, then on through blue, purple and pink). Past a full turn
+  // each lap is offset by half a step so colours don't repeat.
+  function hueFor(i) {
+    var step = 25, raw = i * step, lap = Math.floor(raw / 360);
+    return (raw + lap * step / 2) % 360;
   }
-  function color(h) {
-    var l = 50;
-    if (h < 35) l = 52;                              // reds and oranges
-    else if (h < 75) l = 48;                         // yellows read bright, pull them down
-    else if (h < 180) l = 52 - (h - 75) * 0.11;      // greens darken toward teal
-    else if (h < 270) l = 54;                        // blues read dark, lift them
-    return 'hsl(' + Math.round(h) + ',54%,' + Math.round(l) + '%)';
+  function color(h, darker) {
+    var l;
+    if (h < 160) l = 52 - h * 0.045;                 // mockup: 52% at red easing to 45% at teal
+    else if (h < 270) l = 52;                        // blues read dark, lift them
+    else l = 50;
+    return 'hsl(' + Math.round(h) + ',54%,' + Math.round(l - (darker ? 6 : 0)) + '%)';
   }
-  function listColor(l) { return color(l.hue); }
+  function listColor(l) { return color(hueFor(data.lists.indexOf(l))); }
   function newList(name, tasks) {
-    var l = { id: uid(), name: name, hue: hueFor(data.nextColor++), done: [],
+    var l = { id: uid(), name: name, done: [],
               tasks: (tasks || []).map(function (t) { return { id: uid(), text: t }; }) };
     data.lists.push(l);
     return l;
@@ -338,7 +334,7 @@
                c + esc(l.name) + '</button>';
       }).join('');
       var fill = n
-        ? '<button class="fill top" style="background:' + color(hueFor(data.nextColor)) + '" data-a="addList">+ ADD A LIST</button>'
+        ? '<button class="fill top" style="background:' + color(hueFor(n - 1), true) + '" data-a="addList">+ ADD A LIST</button>'
         : '<button class="fill empty" data-a="addList">+ ADD A LIST</button>';
       return '<div class="screen home">' +
         bar(['SETTINGS', 'settings'], ['ADD', 'addList']) +
@@ -550,7 +546,7 @@
     },
     erase: function (el) {
       if (!armed(el, 'SURE? TAP AGAIN')) return;
-      data = { lists: [], nextColor: 0 }; save(); go('home', 'back');
+      data = { lists: [] }; save(); go('home', 'back');
     }
   };
 
