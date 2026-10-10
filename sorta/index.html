@@ -83,8 +83,7 @@
   .bar .left { display: flex; align-items: stretch; }
   .bar .home-btn { justify-content: center; padding: 0 6px 0 10px; }
   .home-btn svg { width: 28px; height: 28px; }
-  .home-btn path { fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
-  .home-btn text { fill: currentColor; font-family: var(--font); font-size: 14px; }
+  .home-btn:active svg { opacity: .8; }
 
   .title {
     flex: none; padding: 6px 8px 0; font-size: 46px; line-height: 1;
@@ -461,12 +460,24 @@
     }).join('');
   }
 
+  // The Sorta mark: a rounded box striped with the first five list colours,
+  // with an S over it. Used as the home button and the tab icon.
+  function logo() {
+    var stripes = '';
+    for (var i = 0; i < 5; i++) {
+      stripes += '<rect x="0" y="' + (i * 4.8) + '" width="24" height="4.9" fill="' + color(hueFor(i)) + '"/>';
+    }
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">' +
+      '<clipPath id="sorta-box"><rect width="24" height="24" rx="5"/></clipPath>' +
+      '<g clip-path="url(#sorta-box)">' + stripes + '</g>' +
+      '<text x="12" y="20.6" text-anchor="middle" font-family="Bebas Neue, Oswald, Arial Narrow, Impact, sans-serif" ' +
+      'font-size="21" fill="rgba(0,0,0,.5)">S</text></svg>';
+  }
+
   function bar(left, right) {
     function b(x) { return x[0] ? '<button data-a="' + x[1] + '">' + x[0] + '</button>' : '<span></span>'; }
     var home = ui.view === 'home' ? '' :
-      '<button class="home-btn" data-a="home" aria-label="Home">' +
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 L12 3 L21 11 V21 H3 Z"/>' +
-        '<text x="12" y="19.8" text-anchor="middle">S</text></svg></button>';
+      '<button class="home-btn" data-a="home" aria-label="Home">' + logo() + '</button>';
     return '<div class="bar"><div class="left">' + home + b(left) + '</div>' + b(right) + '</div>';
   }
   function action(label, a, disabled, count) {
@@ -639,6 +650,13 @@
     newList('Other Stuff', ['Call mom']);
     newList('Portfolio Rebuild', ['Pick five best projects', 'Write case studies', 'Ship it']);
   }
+
+  try {
+    var icon = document.createElement('link');
+    icon.rel = 'icon'; icon.type = 'image/svg+xml';
+    icon.href = 'data:image/svg+xml,' + encodeURIComponent(logo());
+    document.head.appendChild(icon);
+  } catch (e) {}
 
   render();
 })();
