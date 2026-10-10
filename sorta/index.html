@@ -157,11 +157,13 @@
   .pick .big { font-size: 48px; }
   .arrow { width: 54px; height: 44px; fill: rgba(0,0,0,.22); margin: 0 0 0 44px; }
   .theirs .arrow { margin: 0 44px 0 0; }
+  /* The question is the first thing to read: big, and reversed like the
+     current-task highlight. */
   .question {
-    flex: none; background: var(--shade); text-align: center;
-    padding: 9px 6px 3px; font-size: 34px; line-height: 1; color: var(--ink);
+    flex: none; background: var(--hl-bg); text-align: center;
+    padding: 16px 10px 10px; font-size: 54px; line-height: .92; color: var(--hl-text);
   }
-  .question small { display: block; font-size: 18px; padding-top: 3px; color: rgba(0,0,0,.26); }
+  .question small { display: block; font-size: 20px; line-height: 1; padding-top: 8px; color: var(--hl-dim); }
 
   /* All tasks */
   .scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
@@ -422,7 +424,7 @@
         '<div class="compare" id="compare">' +
           '<button class="pick mine" data-a="pickNew" aria-label="' + esc(c.task.text) + ' comes first">' +
             '<span class="big">' + esc(c.task.text) + '</span>' + arrow(true) + '</button>' +
-          '<div class="question">WHICH WOULD YOU DO FIRST?<small>' +
+          '<div class="question">WHICH WOULD YOU<br>DO FIRST?<small>' +
             (left === 1 ? 'ABOUT 1 MORE' : 'ABOUT ' + left + ' MORE') + '</small></div>' +
           '<button class="pick theirs" data-a="pickOld" aria-label="' + esc(other.text) + ' comes first">' +
             arrow(false) + '<span class="big">' + esc(other.text) + '</span></button>' +
