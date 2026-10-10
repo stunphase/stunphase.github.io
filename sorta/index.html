@@ -69,6 +69,11 @@
   }
   .bar button { padding: 5px 2px 1px; min-height: 28px; }
   .bar button:hover { color: rgba(255,255,255,.55); }
+  .bar .left { display: flex; align-items: flex-end; gap: 10px; }
+  .bar .home-btn { display: flex; align-items: center; padding: 3px 2px; }
+  .home-btn svg { width: 22px; height: 22px; }
+  .home-btn path { fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+  .home-btn text { fill: currentColor; font-family: var(--font); font-size: 14px; }
 
   .title {
     flex: none; padding: 6px 8px 0; font-size: 46px; line-height: 1;
@@ -421,7 +426,11 @@
 
   function bar(left, right) {
     function b(x) { return x[0] ? '<button data-a="' + x[1] + '">' + x[0] + '</button>' : '<span></span>'; }
-    return '<div class="bar">' + b(left) + b(right) + '</div>';
+    var home = ui.view === 'home' ? '' :
+      '<button class="home-btn" data-a="home" aria-label="Home">' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 L12 3 L21 11 V21 H3 Z"/>' +
+        '<text x="12" y="19.8" text-anchor="middle">S</text></svg></button>';
+    return '<div class="bar"><div class="left">' + home + b(left) + '</div>' + b(right) + '</div>';
   }
   function action(label, a, disabled, count) {
     return '<button class="action" data-a="' + a + '"' + (disabled ? ' disabled' : '') + '><span>' + label + '</span>' +
@@ -450,7 +459,11 @@
   // ---------- actions ----------
 
   var actions = {
-    home: function () { ui.focus = null; go('home', 'back'); },
+    home: function () {
+      var c = ui.cmp;
+      if (c && c.origIndex != null) { list().tasks.splice(c.origIndex, 0, c.task); save(); }  // abandon a re-sort
+      ui.cmp = null; ui.focus = null; go('home', 'back');
+    },
     settings: function () { go('settings'); },
     addList: function () { go('addList'); },
     open: function (el) { ui.listId = el.dataset.id; ui.focus = null; go('list'); },
