@@ -374,7 +374,7 @@
       } else {
         var i = focusIndex(l), n = l.tasks.length;
         body = '<div class="current band">' +
-          (i > 0 ? '<div class="place">#' + (i + 1) + ' OF ' + n + '</div>' : '') +
+          '<div class="place">#' + (i + 1) + ' OF ' + n + '</div>' +
           '<div class="big">' + esc(l.tasks[i].text) + '</div></div>' +
           '<div class="actions">' +
           action('MARK AS DONE', 'done') +
