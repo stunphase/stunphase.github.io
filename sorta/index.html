@@ -19,7 +19,9 @@
   remaining range, so a list of n tasks needs about log2(n) answers.
 
   Behaviour decisions not covered by the original mockups:
-  - SKIP FOR NOW swaps the top task with the next one.
+  - SKIP FOR NOW swaps the top task with the next one. After three skips
+    the task offers to be rewritten as a smaller first step (and sorted
+    again), since repeated skipping usually means it's too big or vague.
   - RE-SORT pulls the top task out and asks the comparisons again;
     cancelling puts it back where it was.
   - VIEW ALL TASKS is read-only for order (no drag-to-reorder), so the
@@ -157,7 +159,7 @@
   .theirs .arrow { margin: 0 44px 0 0; }
   .question {
     flex: none; background: var(--shade); text-align: center;
-    padding: 9px 6px 3px; font-size: 38px; line-height: 1; color: var(--ink);
+    padding: 9px 6px 3px; font-size: 34px; line-height: 1; color: var(--ink);
   }
   .question small { display: block; font-size: 18px; padding-top: 3px; color: rgba(0,0,0,.26); }
 
@@ -170,6 +172,8 @@
   }
   .item .open { flex: 1; display: flex; align-items: baseline; gap: 10px; min-width: 0; }
   .item .n { flex: none; width: 1.3em; color: var(--rule); }
+  .nudge { display: block; margin-top: 14px; min-height: 44px; padding-top: 12px; font-size: 21px; line-height: 1.1; color: var(--hl-dim); }
+  .nudge u { text-decoration: none; color: var(--hl-text); }
   .place { font-size: 20px; color: var(--hl-dim); padding-bottom: 6px; }
   .item .t { flex: 1; word-wrap: break-word; min-width: 0; }
   .item .x { flex: none; font-size: 24px; color: var(--rule); padding: 0 4px; }
@@ -214,6 +218,7 @@
   'use strict';
 
   var KEY = 'sorta.v1';
+  var SKIP_NUDGE = 3;   // skips before suggesting the task is too big
   var app = document.getElementById('app');
 
   // ---------- data ----------
@@ -284,13 +289,13 @@
   // narrows to the upper half, otherwise the lower half. When the range is
   // empty, lo is the insertion point.
 
-  function startInsert(l, task, origIndex, returnView) {
+  function startInsert(l, task, origIndex, returnView, original) {
     if (l.tasks.length === 0) { l.tasks.push(task); save(); go(returnView || 'list'); return; }
     var n = l.tasks.length;
     ui.cmp = {
       listId: l.id, task: task, lo: 0, hi: n, asked: 0,
       estimate: Math.ceil(Math.log2(n + 1)),
-      origIndex: origIndex, returnView: returnView || 'list'
+      origIndex: origIndex, original: original || task, returnView: returnView || 'list'
     };
     go('compare');
   }
@@ -312,8 +317,8 @@
 
   function cancelCompare() {
     var c = ui.cmp, l = list();
-    if (c && c.origIndex != null) {           // re-sort: put it back
-      l.tasks.splice(c.origIndex, 0, c.task);
+    if (c && c.origIndex != null) {           // re-sort or rewrite: put it back
+      l.tasks.splice(c.origIndex, 0, c.original);
       save();
     }
     ui.cmp = null;
@@ -374,7 +379,11 @@
         var i = focusIndex(l), n = l.tasks.length;
         body = '<div class="current band">' +
           '<div class="place">#' + (i + 1) + ' OF ' + n + '</div>' +
-          '<div class="big">' + esc(l.tasks[i].text) + '</div></div>' +
+          '<div class="big">' + esc(l.tasks[i].text) + '</div>' +
+          (l.tasks[i].skips >= SKIP_NUDGE
+            ? '<button class="nudge" data-a="rewrite">SKIPPED ' + l.tasks[i].skips + ' TIMES. TOO BIG? ' +
+              '<u>REWRITE AS A FIRST STEP &rsaquo;</u></button>' : '') +
+          '</div>' +
           '<div class="actions">' +
           action('MARK AS DONE', 'done') +
           action('SKIP FOR NOW', 'skip', i >= n - 1) +
@@ -393,7 +402,15 @@
       return '<div class="screen" style="' + listStyle(l) + '">' +
         bar(['BACK', 'list'], ['CANCEL', 'list']) +
         '<div class="title">' + esc(l.name) + '</div>' +
-        entry('NEW TASK', 'createTask', l.tasks.length ? 'SORT IT' : 'ADD') + '</div>';
+        entry('START WITH A VERB', 'createTask', l.tasks.length ? 'SORT IT' : 'ADD') + '</div>';
+    },
+
+    rewrite: function () {
+      var l = list(), t = l.tasks[focusIndex(l)];
+      return '<div class="screen" style="' + listStyle(l) + '">' +
+        bar(['BACK', 'list'], ['CANCEL', 'list']) +
+        '<div class="title">' + esc(l.name) + '</div>' +
+        entry('START WITH A VERB', 'rewriteTask', l.tasks.length > 1 ? 'SORT IT' : 'SAVE', t.text) + '</div>';
     },
 
     compare: function () {
@@ -405,7 +422,7 @@
         '<div class="compare" id="compare">' +
           '<button class="pick mine" data-a="pickNew" aria-label="' + esc(c.task.text) + ' comes first">' +
             '<span class="big">' + esc(c.task.text) + '</span>' + arrow(true) + '</button>' +
-          '<div class="question">WHICH COMES FIRST?<small>' +
+          '<div class="question">WHICH WOULD YOU DO FIRST?<small>' +
             (left === 1 ? 'ABOUT 1 MORE' : 'ABOUT ' + left + ' MORE') + '</small></div>' +
           '<button class="pick theirs" data-a="pickOld" aria-label="' + esc(other.text) + ' comes first">' +
             arrow(false) + '<span class="big">' + esc(other.text) + '</span></button>' +
@@ -441,8 +458,10 @@
           '<div class="about"><b>How Sorta works.</b> You never rank your list. When you add a task, ' +
           'Sorta asks you to compare it with one task at a time, starting in the middle and halving ' +
           'the range each time (binary insertion sort). A list of 30 tasks takes about 5 taps.<br><br>' +
-          '<b>Skip for now</b> swaps the top task with the next one. <b>Re-sort</b> asks the ' +
-          'comparisons again for the top task, for when priorities have changed.<br><br>' +
+          '<b>Skip for now</b> swaps the top task with the next one. Skip something three times ' +
+          'and Sorta will suggest rewriting it as a smaller first step. <b>Re-sort</b> asks the ' +
+          'comparisons again, for when priorities have changed.<br><br>' +
+          'Write tasks as actions you can start, beginning with a verb.<br><br>' +
           'Your lists are stored on this device only.</div>' +
         '</div></div>';
     }
@@ -483,10 +502,10 @@
     return '<button class="action" data-a="' + a + '"' + (disabled ? ' disabled' : '') + '><span>' + label + '</span>' +
       (count != null ? '<small>' + count + '</small>' : '') + '</button>';
   }
-  function entry(placeholder, a, label) {
+  function entry(placeholder, a, label, value) {
     return '<form class="entry" data-submit="' + a + '">' +
       '<textarea name="t" rows="3" maxlength="120" placeholder="' + placeholder + '" autocomplete="off" ' +
-      'autocapitalize="characters" enterkeyhint="done"></textarea>' +
+      'autocapitalize="characters" enterkeyhint="done">' + esc(value || '') + '</textarea>' +
       '<button class="go" type="submit">' + label + '</button></form>';
   }
   function arrow(up) {
@@ -508,7 +527,7 @@
   var actions = {
     home: function () {
       var c = ui.cmp;
-      if (c && c.origIndex != null) { list().tasks.splice(c.origIndex, 0, c.task); save(); }  // abandon a re-sort
+      if (c && c.origIndex != null) { list().tasks.splice(c.origIndex, 0, c.original); save(); }  // abandon a re-sort
       ui.cmp = null; ui.focus = null; go('home', 'back');
     },
     settings: function () { go('settings'); },
@@ -516,6 +535,7 @@
     open: function (el) { ui.listId = el.dataset.id; ui.focus = null; go('list'); },
     list: function () { go('list', 'back'); },
     addTask: function () { go('addTask'); },
+    rewrite: function () { go('rewrite'); },
     all: function () { var back = ui.view === 'list' && ui.focus; ui.focus = null; go('all', back ? 'back' : null); },
     focus: function (el) {
       if (ui.view === 'all') ui.focusFrom = 'all';
@@ -536,12 +556,14 @@
     },
     skip: function () {
       var l = list(), i = focusIndex(l), t = l.tasks.splice(i, 1)[0];
+      t.skips = (t.skips || 0) + 1;
       l.tasks.splice(i + 1, 0, t);
       ui.focus = i > 0 ? l.tasks[i].id : null;
       save(); render('enter');
     },
     resort: function () {
       var l = list(), i = focusIndex(l), t = l.tasks.splice(i, 1)[0];
+      t.skips = 0;
       ui.focus = null;
       startInsert(l, t, i, 'list');
     },
@@ -593,6 +615,13 @@
     },
     createTask: function (text) {
       startInsert(list(), { id: uid(), text: text }, null, 'list');
+    },
+    // A rewritten task is sorted again from scratch. Cancelling the
+    // comparisons puts the original back untouched.
+    rewriteTask: function (text) {
+      var l = list(), i = focusIndex(l), old = l.tasks.splice(i, 1)[0];
+      ui.focus = null;
+      startInsert(l, { id: old.id, text: text }, i, 'list', old);
     }
   };
 
