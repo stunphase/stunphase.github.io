@@ -472,9 +472,9 @@
       startInsert(l, t, null, 'all');
     },
     clearDone: function () { var l = list(); l.done = []; save(); render(); },
-    delList: function () {
+    delList: function (el) {
       var l = list();
-      if (!confirm('Delete "' + l.name + '" and all its tasks?')) return;
+      if (!armed(el, 'SURE? TAP AGAIN')) return;
       var i = data.lists.indexOf(l);
       data.lists.splice(i, 1); save(); go('home', 'back');
       toast('LIST DELETED', function () { data.lists.splice(i, 0, l); });
@@ -483,11 +483,21 @@
       sampleData().forEach(function (l) { data.lists.push(l); });
       save(); go('home', 'back');
     },
-    erase: function () {
-      if (!confirm('Erase all lists and tasks?')) return;
+    erase: function (el) {
+      if (!armed(el, 'SURE? TAP AGAIN')) return;
       data = { lists: [] }; save(); go('home', 'back');
     }
   };
+
+  // Destructive actions take a second tap instead of a confirm() dialog,
+  // which embedded and home-screen web apps can suppress.
+  function armed(el, label) {
+    if (el.dataset.armed) return true;
+    var span = el.querySelector('span'), was = span.textContent;
+    el.dataset.armed = '1'; span.textContent = label;
+    setTimeout(function () { delete el.dataset.armed; span.textContent = was; }, 3000);
+    return false;
+  }
 
   var submits = {
     createList: function (text) {
