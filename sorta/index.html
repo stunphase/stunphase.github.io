@@ -25,6 +25,8 @@
   - VIEW ALL TASKS is read-only for order (no drag-to-reorder), so the
     comparisons stay the only way to rank. Tapping a task opens it in the
     task view, where the same actions apply to it. Tasks can be deleted there.
+  - The task view also lists every task below its actions, current one
+    highlighted; tapping one switches to it.
   - List colours come from position: a red-to-green gradient down the
     home screen, as in the mockups.
 -->
@@ -162,6 +164,7 @@
   .item .t { flex: 1; word-wrap: break-word; min-width: 0; }
   .item .x { flex: none; font-size: 24px; color: var(--rule); padding: 0 4px; }
   .item.first { background: var(--shade); color: var(--ink-strong); }
+  .item .open { min-height: 30px; }
   .item.done .t { text-decoration: line-through; opacity: .55; }
   .section { padding: 22px 10px 4px; font-size: 22px; color: var(--rule); border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; }
   .danger { color: rgba(0,0,0,.4); }
@@ -297,7 +300,7 @@
 
   function go(view, dir) {
     ui.view = view;
-    render(dir === 'back' ? 'enter-back' : 'enter');
+    render(dir === 'back' ? 'enter-back' : dir === 'none' ? null : 'enter');
   }
 
   function toast(msg, undo) {
@@ -353,11 +356,12 @@
           action('SKIP FOR NOW', 'skip', i >= n - 1) +
           action('RE-SORT', 'resort', n < 2) +
           action('VIEW ALL TASKS', 'all', false, l.tasks.length) +
-          '</div>';
+          '</div>' +
+          (n > 1 ? '<div class="section"><span>THE LIST</span></div>' + taskRows(l, i, false) : '');
       }
       return '<div class="screen" style="background:' + listColor(l) + '">' +
-        bar(ui.focus ? ['BACK', 'all'] : ['BACK', 'home'], ['ADD', 'addTask']) +
-        '<div class="title">' + esc(l.name) + '</div>' + body + '</div>';
+        bar(ui.focus && ui.focusFrom === 'all' ? ['BACK', 'all'] : ['BACK', 'home'], ['ADD', 'addTask']) +
+        '<div class="title">' + esc(l.name) + '</div><div class="scroll">' + body + '</div></div>';
     },
 
     addTask: function () {
@@ -386,12 +390,7 @@
 
     all: function () {
       var l = list();
-      var items = l.tasks.map(function (t, i) {
-        return '<div class="item' + (i === 0 ? ' first' : '') + '">' +
-          '<button class="open" data-a="focus" data-id="' + t.id + '"><span class="n">' + (i + 1) + '</span>' +
-          '<span class="t">' + esc(t.text) + '</span></button>' +
-          '<button class="x" data-a="delTask" data-id="' + t.id + '" aria-label="Delete">&times;</button></div>';
-      }).join('');
+      var items = taskRows(l, 0, true);
       if (!l.tasks.length) items = '<div class="hint">NOTHING TO DO.</div>';
       var done = '';
       if (l.done.length) {
@@ -424,6 +423,18 @@
         '</div></div>';
     }
   };
+
+  // The ordered task list; row `hi` is highlighted, and each row opens
+  // that task in the task view.
+  function taskRows(l, hi, deletable) {
+    return l.tasks.map(function (t, i) {
+      return '<div class="item' + (i === hi ? ' first' : '') + '">' +
+        '<button class="open" data-a="focus" data-id="' + t.id + '"><span class="n">' + (i + 1) + '</span>' +
+        '<span class="t">' + esc(t.text) + '</span></button>' +
+        (deletable ? '<button class="x" data-a="delTask" data-id="' + t.id + '" aria-label="Delete">&times;</button>' : '') +
+        '</div>';
+    }).join('');
+  }
 
   function bar(left, right) {
     function b(x) { return x[0] ? '<button data-a="' + x[1] + '">' + x[0] + '</button>' : '<span></span>'; }
@@ -471,7 +482,12 @@
     list: function () { go('list', 'back'); },
     addTask: function () { go('addTask'); },
     all: function () { var back = ui.view === 'list' && ui.focus; ui.focus = null; go('all', back ? 'back' : null); },
-    focus: function (el) { ui.focus = el.dataset.id; go('list'); },
+    focus: function (el) {
+      if (ui.view === 'all') ui.focusFrom = 'all';
+      else if (!ui.focus) ui.focusFrom = 'list';
+      ui.focus = el.dataset.id;
+      go('list', ui.focusFrom === 'all' ? null : 'none');
+    },
     cancelCompare: cancelCompare,
     pickNew: function () { answer(true); },
     pickOld: function () { answer(false); },
