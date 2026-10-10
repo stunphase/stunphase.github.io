@@ -27,8 +27,8 @@
     task view, where the same actions apply to it. Tasks can be deleted there.
   - The task view also lists every task below its actions, current one
     highlighted; tapping one switches to it.
-  - List colours come from position: a red-to-green gradient down the
-    home screen, as in the mockups.
+  - Each new list takes the next colour in a fixed hue step and keeps it,
+    so lists build a rainbow down the home screen without repeating.
 -->
 <style>
   :root {
@@ -219,6 +219,9 @@
   function save() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {} }
 
   var data = load();
+  // Lists saved before colours were stored get theirs in list order.
+  if (typeof data.nextColor !== 'number') data.nextColor = 0;
+  data.lists.forEach(function (l) { if (typeof l.hue !== 'number') l.hue = hueFor(data.nextColor++); });
   var ui = { view: 'home', listId: null, cmp: null, focus: null };
   var toastTimer = null;
 
@@ -227,19 +230,29 @@
     return null;
   }
 
-  // Colour from position: red at the top of the home screen, through
-  // orange and yellow, to green at the bottom.
-  function hue(i, n) {
-    var step = Math.min(22, 160 / Math.max(n, 1));
-    return Math.round(2 + i * step);
+  // Each new list takes the next hue in a fixed 22-degree step and keeps
+  // it, so lists run red, orange, yellow, green, teal, blue, purple, pink
+  // and round again. Each later lap is offset by half a step so its
+  // colours fall between the previous lap's instead of repeating them.
+  function hueFor(n) {
+    var step = 22, raw = n * step, lap = Math.floor(raw / 360);
+    return (2 + raw + lap * step / 2) % 360;
   }
-  function color(i, n) {
-    var h = hue(i, n);
-    var l = 52 - Math.max(0, h - 90) * 0.2;  // greens darken toward teal
-    if (h > 35 && h < 75) l -= 4;             // yellows read brighter, pull them down
-    return 'hsl(' + h + ',' + (h > 35 ? 52 : 56) + '%,' + l + '%)';
+  function color(h) {
+    var l = 50;
+    if (h < 35) l = 52;                              // reds and oranges
+    else if (h < 75) l = 48;                         // yellows read bright, pull them down
+    else if (h < 180) l = 52 - (h - 75) * 0.11;      // greens darken toward teal
+    else if (h < 270) l = 54;                        // blues read dark, lift them
+    return 'hsl(' + Math.round(h) + ',54%,' + Math.round(l) + '%)';
   }
-  function listColor(l) { return color(data.lists.indexOf(l), data.lists.length); }
+  function listColor(l) { return color(l.hue); }
+  function newList(name, tasks) {
+    var l = { id: uid(), name: name, hue: hueFor(data.nextColor++), done: [],
+              tasks: (tasks || []).map(function (t) { return { id: uid(), text: t }; }) };
+    data.lists.push(l);
+    return l;
+  }
 
   // Index of the task shown in the task view; the top task unless one was
   // picked from VIEW ALL TASKS.
@@ -321,11 +334,11 @@
       var n = data.lists.length;
       var rows = data.lists.map(function (l, i) {
         var c = l.tasks.length ? '<span class="count">' + l.tasks.length + '</span>' : '';
-        return '<button class="row" style="background:' + color(i, n + 1) + '" data-a="open" data-id="' + l.id + '">' +
+        return '<button class="row" style="background:' + listColor(l) + '" data-a="open" data-id="' + l.id + '">' +
                c + esc(l.name) + '</button>';
       }).join('');
       var fill = n
-        ? '<button class="fill top" style="background:' + color(n, n + 1) + '" data-a="addList">+ ADD A LIST</button>'
+        ? '<button class="fill top" style="background:' + color(hueFor(data.nextColor)) + '" data-a="addList">+ ADD A LIST</button>'
         : '<button class="fill empty" data-a="addList">+ ADD A LIST</button>';
       return '<div class="screen home">' +
         bar(['SETTINGS', 'settings'], ['ADD', 'addList']) +
@@ -532,12 +545,12 @@
       toast('LIST DELETED', function () { data.lists.splice(i, 0, l); });
     },
     sample: function () {
-      sampleData().forEach(function (l) { data.lists.push(l); });
+      sampleData();
       save(); go('home', 'back');
     },
     erase: function (el) {
       if (!armed(el, 'SURE? TAP AGAIN')) return;
-      data = { lists: [] }; save(); go('home', 'back');
+      data = { lists: [], nextColor: 0 }; save(); go('home', 'back');
     }
   };
 
@@ -553,8 +566,7 @@
 
   var submits = {
     createList: function (text) {
-      var l = { id: uid(), name: text, tasks: [], done: [] };
-      data.lists.push(l); save();
+      var l = newList(text); save();
       ui.listId = l.id; go('list');
     },
     createTask: function (text) {
@@ -607,18 +619,13 @@
   }
 
   function sampleData() {
-    function L(name, tasks) {
-      return { id: uid(), name: name, done: [], tasks: tasks.map(function (t) { return { id: uid(), text: t }; }) };
-    }
-    return [
-      L('Around the House', ['Clean out rain gutters', 'Power wash driveway', 'Replace furnace filter', 'Fix squeaky door']),
-      L('Vegas Trip', ['Book hotel', 'Find flights', 'Get show tickets']),
-      L('Presentation', ['Outline the talk', 'Make slides', 'Rehearse twice']),
-      L('Auto Maintenance', ['Oil change', 'Rotate tires']),
-      L('Xmas Party', ['Pick a date', 'Send invites', 'Order food']),
-      L('Other Stuff', ['Call mom']),
-      L('Portfolio Rebuild', ['Pick five best projects', 'Write case studies', 'Ship it'])
-    ];
+    newList('Around the House', ['Clean out rain gutters', 'Power wash driveway', 'Replace furnace filter', 'Fix squeaky door']);
+    newList('Vegas Trip', ['Book hotel', 'Find flights', 'Get show tickets']);
+    newList('Presentation', ['Outline the talk', 'Make slides', 'Rehearse twice']);
+    newList('Auto Maintenance', ['Oil change', 'Rotate tires']);
+    newList('Xmas Party', ['Pick a date', 'Send invites', 'Order food']);
+    newList('Other Stuff', ['Call mom']);
+    newList('Portfolio Rebuild', ['Pick five best projects', 'Write case studies', 'Ship it']);
   }
 
   render();
