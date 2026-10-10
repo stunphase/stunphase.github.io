@@ -40,10 +40,6 @@
     --ink-strong: rgba(0,0,0,.46);
     --shade: rgba(0,0,0,.16);
     --rule: rgba(0,0,0,.14);
-    /* highlights are reversed: light text on a deeper shade of the list colour */
-    --hl-bg: rgba(0,0,0,.28);
-    --hl-text: rgba(255,255,255,.92);
-    --hl-dim: rgba(255,255,255,.55);
     --font: "Bebas Neue", "Oswald", "Arial Narrow", Impact, sans-serif;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -61,6 +57,14 @@
     box-shadow: 0 0 40px rgba(0,0,0,.5);
   }
   .screen { position: absolute; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
+  /* Highlights are reversed: a pale tint of the list colour on a deeper
+     shade of it, so they stay monochromatic. --h is set per list screen;
+     these live on .screen so they resolve against it. */
+  .screen {
+    --hl-bg: rgba(0,0,0,.28);
+    --hl-text: hsl(var(--h, 0), 80%, 78%);
+    --hl-dim: hsl(var(--h, 0), 55%, 64%);
+  }
   .screen.enter { animation: enter .22s ease-out; }
   .screen.enter-back { animation: enter-back .22s ease-out; }
   @keyframes enter { from { transform: translateX(28px); opacity: 0; } }
@@ -251,6 +255,10 @@
     return 'hsl(' + Math.round(h) + ',54%,' + Math.round(l - (darker ? 6 : 0)) + '%)';
   }
   function listColor(l) { return color(hueFor(data.lists.indexOf(l))); }
+  // Screen background plus the hue, so highlights can tint their text with it.
+  function listStyle(l) {
+    return 'background:' + listColor(l) + ';--h:' + Math.round(hueFor(data.lists.indexOf(l)));
+  }
   function newList(name, tasks) {
     var l = { id: uid(), name: name, done: [],
               tasks: (tasks || []).map(function (t) { return { id: uid(), text: t }; }) };
@@ -376,14 +384,14 @@
           (n > 1 ? '<div class="section"><span>THE LIST</span></div>' + taskRows(l, i, false) : '');
       }
       body += '<button class="more" data-a="all">VIEW ALL TASKS &rsaquo;</button>';
-      return '<div class="screen" style="background:' + listColor(l) + '">' +
+      return '<div class="screen" style="' + listStyle(l) + '">' +
         bar(ui.focus && ui.focusFrom === 'all' ? ['BACK', 'all'] : ['BACK', 'home'], ['ADD', 'addTask']) +
         '<div class="title">' + esc(l.name) + '</div><div class="scroll">' + body + '</div></div>';
     },
 
     addTask: function () {
       var l = list();
-      return '<div class="screen" style="background:' + listColor(l) + '">' +
+      return '<div class="screen" style="' + listStyle(l) + '">' +
         bar(['BACK', 'list'], ['CANCEL', 'list']) +
         '<div class="title">' + esc(l.name) + '</div>' +
         entry('NEW TASK', 'createTask', l.tasks.length ? 'SORT IT' : 'ADD') + '</div>';
@@ -393,7 +401,7 @@
       var l = list(), c = ui.cmp;
       var other = l.tasks[(c.lo + c.hi) >> 1];
       var left = Math.max(1, c.estimate - c.asked);
-      return '<div class="screen" style="background:' + listColor(l) + '">' +
+      return '<div class="screen" style="' + listStyle(l) + '">' +
         bar(['', ''], ['CANCEL', 'cancelCompare']) +
         '<div class="compare" id="compare">' +
           '<button class="pick mine" data-a="pickNew" aria-label="' + esc(c.task.text) + ' comes first">' +
@@ -417,7 +425,7 @@
               '<button class="x" data-a="restore" data-id="' + t.id + '" aria-label="Restore">&#8634;</button></div>';
           }).join('');
       }
-      return '<div class="screen" style="background:' + listColor(l) + '">' +
+      return '<div class="screen" style="' + listStyle(l) + '">' +
         bar(['BACK', 'list'], ['ADD', 'addTask']) +
         '<div class="title">' + esc(l.name) + '</div>' +
         '<div class="scroll">' + items + done +
