@@ -64,14 +64,15 @@
   .bar {
     flex: none; display: flex; justify-content: space-between; align-items: flex-end;
     background: var(--chrome); color: var(--chrome-text);
-    padding: env(safe-area-inset-top) 8px 0;
-    font-size: 19px; letter-spacing: .02em;
+    padding: env(safe-area-inset-top) 0 0;
+    font-size: 24px; letter-spacing: .02em;
   }
-  .bar button { padding: 5px 2px 1px; min-height: 28px; }
+  /* 44px minimum tap targets (Apple HIG) */
+  .bar button { display: flex; align-items: center; min-height: 44px; min-width: 44px; padding: 3px 12px 0; }
   .bar button:hover { color: rgba(255,255,255,.55); }
-  .bar .left { display: flex; align-items: flex-end; gap: 10px; }
-  .bar .home-btn { display: flex; align-items: center; padding: 3px 2px; }
-  .home-btn svg { width: 22px; height: 22px; }
+  .bar .left { display: flex; align-items: stretch; }
+  .bar .home-btn { justify-content: center; padding: 0 6px 0 10px; }
+  .home-btn svg { width: 28px; height: 28px; }
   .home-btn path { fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
   .home-btn text { fill: currentColor; font-family: var(--font); font-size: 14px; }
 
