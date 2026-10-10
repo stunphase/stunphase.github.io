@@ -225,17 +225,82 @@
 
   function uid() { return Math.random().toString(36).slice(2, 10); }
 
-  function load() {
+  // ---------- storage ----------
+  // Inside the claude.ai viewer each signed-in person's lists live in
+  // their own private document (data/users/<id>/sorta), so people the
+  // page is shared with each get their own set, on any device. Anywhere
+  // else (GitHub Pages, a saved file) or if that isn't available, lists
+  // stay in this browser's localStorage as before.
+
+  function loadLocal(key) {
     try {
-      var raw = localStorage.getItem(KEY);
+      var raw = localStorage.getItem(key);
       if (raw) { var d = JSON.parse(raw); if (d && Array.isArray(d.lists)) return d; }
     } catch (e) {}
-    return { lists: [] };
+    return null;
   }
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {} }
 
-  var data = load();
-  var ui = { view: 'home', listId: null, cmp: null, focus: null };
+  var cloud = { ref: null, writing: false, again: false, timer: null };
+  var localKey = KEY;
+
+  function save() {
+    try { localStorage.setItem(localKey, JSON.stringify(data)); } catch (e) {}
+    if (cloud.ref) { clearTimeout(cloud.timer); cloud.timer = setTimeout(flush, 400); }
+  }
+
+  // One write at a time; changes made during a write go out right after.
+  function flush(retried) {
+    if (!cloud.ref) return;
+    if (cloud.writing) { cloud.again = true; return; }
+    cloud.writing = true;
+    cloud.ref.set(JSON.parse(JSON.stringify(data))).then(function () {
+      cloud.writing = false;
+      if (cloud.again) { cloud.again = false; flush(); }
+    }, function (e) {
+      cloud.writing = false;
+      if (e && e.code === 'unavailable' && !retried) {
+        setTimeout(function () { flush(true); }, 1000 + Math.random() * 1000);
+      } else {
+        cloud.ref = null;   // can't write here (e.g. view-only access): keep going on this device
+        toast('SAVING ON THIS DEVICE ONLY');
+      }
+    });
+  }
+
+  function boot() {
+    var claude = window.claude;
+    if (!claude || typeof claude.use !== 'function') { start(loadLocal(KEY)); return; }
+    render();   // loading screen while the viewer answers
+    Promise.all([claude.use('db'), claude.use('user')]).then(function (r) {
+      var db = r[0], user = r[1];
+      return (user ? user.id() : Promise.resolve(null)).then(function (id) {
+        if (!db || !id) return start(loadLocal(KEY));
+        var ref = db.doc('data/users/' + id + '/sorta');
+        localKey = KEY + '.' + id;
+        return ref.get().then(function (snap) {
+          var d = snap.exists && snap.data();
+          cloud.ref = ref;
+          if (d && Array.isArray(d.lists)) {
+            start(JSON.parse(JSON.stringify(d)));
+          } else {
+            // First visit with an account: bring along lists made in this browser.
+            var local = loadLocal(localKey) || loadLocal(KEY);
+            start(local);
+            if (local && local.lists.length) save();
+          }
+        });
+      });
+    }).catch(function () { cloud.ref = null; start(loadLocal(KEY)); });
+  }
+
+  function start(d) {
+    data = d || { lists: [] };
+    ui.view = 'home';
+    render();
+  }
+
+  var data = { lists: [] };
+  var ui = { view: 'loading', listId: null, cmp: null, focus: null };
   var toastTimer = null;
 
   function list() {
@@ -346,6 +411,11 @@
   // ---------- views ----------
 
   var views = {
+    loading: function () {
+      return '<div class="screen home"><div class="bar"><span></span></div>' +
+        '<div class="title">SORTA</div><div class="fill empty"></div></div>';
+    },
+
     home: function () {
       var n = data.lists.length;
       var rows = data.lists.map(function (l, i) {
@@ -462,7 +532,8 @@
           'and Sorta will suggest rewriting it as a smaller first step. <b>Re-sort</b> asks the ' +
           'comparisons again, for when priorities have changed.<br><br>' +
           'Write tasks as actions you can start, beginning with a verb.<br><br>' +
-          'Your lists are stored on this device only.</div>' +
+          (cloud.ref ? 'Your lists are saved privately to your Claude account, so anyone you ' +
+            'share Sorta with gets their own.' : 'Your lists are stored on this device only.') + '</div>' +
         '</div></div>';
     }
   };
@@ -686,7 +757,7 @@
     document.head.appendChild(icon);
   } catch (e) {}
 
-  render();
+  boot();
 })();
 </script>
 </body>
